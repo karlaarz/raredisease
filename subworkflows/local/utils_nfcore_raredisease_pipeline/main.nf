@@ -126,7 +126,11 @@ workflow PIPELINE_INITIALISATION {
                     return new_meta
                     }.unique()
 
-    ch_case_info = ch_samples.toList().map { createCaseChannel(it) }
+    //ch_case_info = ch_samples.toList().map { createCaseChannel(it) } //cause merging all families in one vcf file
+    ch_case_info = ch_samples
+        .map { meta -> [ meta.case_id, meta ] }
+        .groupTuple()
+        .map { case_id, metas -> createCaseChannel(metas) }
 
     emit:
     reads     = ch_samplesheet_by_type.fastq
