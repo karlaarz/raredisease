@@ -14,6 +14,9 @@ include { PICARD_LIFTOVERVCF                                    } from '../../..
 include { BCFTOOLS_ANNOTATE                                     } from '../../../modules/nf-core/bcftools/annotate/main'
 include { ADD_VARCALLER_TO_BED                                  } from '../../../modules/local/add_varcallername_to_bed'
 include { TABIX_TABIX as TABIX_ANNOTATE                         } from '../../../modules/nf-core/tabix/tabix/main'
+include { BCFTOOLS_ANNOTATE as BCFTOOLS_ANNOTATE_CLEAN_MT       } from '../../../modules/nf-core/bcftools/annotate/main'
+include { TABIX_TABIX as TABIX_ANNOTATE_CLEAN                   } from '../../../modules/nf-core/tabix/tabix/main'
+
 
 workflow POSTPROCESS_MT_CALLS {
     take:
@@ -121,6 +124,15 @@ workflow POSTPROCESS_MT_CALLS {
 
         TABIX_ANNOTATE(BCFTOOLS_ANNOTATE.out.vcf)
 
+        // CLEAN FORMATs that break Haplogrep3
+        BCFTOOLS_ANNOTATE.out.vcf
+            .map { meta, vcf -> [ meta, vcf, [], [], [], [] ] }
+            .set { ch_clean_fmt_in }
+
+        BCFTOOLS_ANNOTATE_CLEAN_MT( ch_clean_fmt_in, [] )
+        TABIX_ANNOTATE_CLEAN( BCFTOOLS_ANNOTATE_CLEAN_MT.out.vcf )
+
+
         ch_versions = ch_versions.mix(PICARD_LIFTOVERVCF.out.versions.first())
         ch_versions = ch_versions.mix(GATK4_MERGEVCFS_LIFT_UNLIFT_MT.out.versions.first())
         ch_versions = ch_versions.mix(GATK4_VARIANTFILTRATION_MT.out.versions.first())
@@ -135,7 +147,9 @@ workflow POSTPROCESS_MT_CALLS {
         ch_versions = ch_versions.mix(TABIX_TABIX_MT2.out.versions)
 
     emit:
-        vcf       = BCFTOOLS_ANNOTATE.out.vcf   // channel: [ val(meta), path(vcf) ]
-        tbi       = TABIX_ANNOTATE.out.tbi      // channel: [ val(meta), path(tbi) ]
+        //vcf       = BCFTOOLS_ANNOTATE.out.vcf   // channel: [ val(meta), path(vcf) ]
+        //tbi       = TABIX_ANNOTATE.out.tbi      // channel: [ val(meta), path(tbi) ]
+        vcf       = BCFTOOLS_ANNOTATE_CLEAN_MT.out.vcf   // channel: [ val(meta), path(vcf) ]
+        tbi       = TABIX_ANNOTATE_CLEAN.out.tbi      // channel: [ val(meta), path(tbi) ]
         versions  = ch_versions                 // channel: [ path(versions.yml) ]
 }
