@@ -600,12 +600,28 @@ workflow RAREDISEASE {
             )
             ch_versions = ch_versions.mix(ANN_CSQ_PLI_MT.out.versions)
 
+            // ANN_CSQ_PLI_MT.out.vcf_ann
+            //     .filter { it ->
+            //         if (it[0].probands.size()==0) {
+            //             log.warn("Skipping mitochondrial SNV ranking since no affected samples are detected in the case")
+            //         }
+            //         it[0].probands.size()>0
+            //     }
+            //     .set {ch_ranksnv_mt_in}
+
             ANN_CSQ_PLI_MT.out.vcf_ann
                 .filter { it ->
                     if (it[0].probands.size()==0) {
                         log.warn("Skipping mitochondrial SNV ranking since no affected samples are detected in the case")
                     }
                     it[0].probands.size()>0
+                }
+                .filter { meta, vcf ->
+                    def hasVariants = vcf.countVcf() > 0
+                    if (!hasVariants) {
+                        log.warn("Skipping mitochondrial SNV ranking for ${meta.id} (${meta.set}) since the clinical VCF is empty after gene panel filtering")
+                    }
+                    hasVariants
                 }
                 .set {ch_ranksnv_mt_in}
 
